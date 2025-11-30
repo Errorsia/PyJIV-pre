@@ -12,11 +12,11 @@ class JIVMain:
         app = QApplication(sys.argv)
 
         logic = Jiv_logic.JIVLogic()
-        adapter = Jiv_adapter.TimerAdapter(logic)
-        gui = Jiv_gui.MainWindow(adapter)
+        adapters = Jiv_adapter.AdapterManager(logic)
+        gui = Jiv_gui.MainWindow(adapters)
 
         gui.show()
-        adapter.start()
+        # adapter.start()
 
         sys.exit(app.exec())
 
