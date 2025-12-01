@@ -7,14 +7,15 @@ from PySide6.QtCore import QObject, Signal, QTimer, QThread
 
 
 class AdapterManager(QObject):
-    signal = Signal(str, object)
+    ui_change = Signal(str, object)
 
-    def __init__(self, logic):
+    def __init__(self, logic, gui):
         super().__init__()
         self.logic = logic
+        self.gui = gui
         self.workers = []
-        # self.workers: list[BaseWorkerProtocol] = []
-        # self.threads: dict[BaseWorkerProtocol, QThread] = {}
+        # self.workers: list[BaseAdapterProtocol] = []
+        # self.threads: dict[BaseAdapterProtocol, QThread] = {}
 
         self.threads = {}
 
@@ -22,9 +23,10 @@ class AdapterManager(QObject):
         self.start_all()
 
     def init_workers(self):
-        self.workers.append(MonitorWorker(self.logic, 1000))
-        # self.workers.append(DatabaseWorker(logic, 2000))
-        # self.workers.append(NetworkWorker(logic, 5000))
+        self.workers.append(MonitorAdapter(1000, self.logic))
+        # self.workers.append(TopMostAdapter(100, self.gui))
+        # self.workers.append(DatabaseAdapter(logic, 2000))
+        # self.workers.append(NetworkAdapter(logic, 5000))
 
     # def start_workers(self):
     #
@@ -48,8 +50,8 @@ class AdapterManager(QObject):
 
             thread.started.connect(worker.start)
             # 用 lambda 包装，把 worker 类名和结果一起发出去
-            worker.value.connect(lambda result, w=worker:
-                                      self.signal.emit(type(w).__name__, result))
+            worker.changed.connect(lambda result, w=worker:
+                                   self.ui_change.emit(type(w).__name__, result))
 
             self.threads[worker] = thread
             thread.start()
@@ -62,7 +64,7 @@ class AdapterManager(QObject):
             thread.wait()
 
 
-class BaseWorkerInterface:
+class BaseAdapterInterface:
     def start(self):
         raise NotImplementedError("Subclasses must implement start()")
 
@@ -73,7 +75,7 @@ class BaseWorkerInterface:
         raise NotImplementedError("Subclasses must implement run_task()")
 
 
-# class BaseWorkerProtocol(Protocol):
+# class BaseAdapterProtocol(Protocol):
 #     def start(self) -> None: ...
 #
 #     def stop(self) -> None: ...
@@ -81,7 +83,7 @@ class BaseWorkerInterface:
 #     def run_task(self) -> None: ...
 
 
-# class BaseWorkerInterface(ABC):
+# class BaseAdapterInterface(ABC):
 #     @abstractmethod
 #     def start(self):
 #         raise NotImplementedError("Subclasses must implement start()")
@@ -101,7 +103,7 @@ class BaseWorkerInterface:
 #     def __init__(self, logic):
 #         super().__init__()
 #         self.thread = QThread()
-#         self.worker = MonitorWorker(logic, 1000)
+#         self.worker = MonitorAdapter(logic, 1000)
 #         self.worker.moveToThread(self.thread)
 #
 #         self.thread.started.connect(self.worker.start)
@@ -115,10 +117,10 @@ class BaseWorkerInterface:
 #         self.thread.wait()
 
 
-class MonitorWorker(QObject, BaseWorkerInterface):
-    value = Signal(bool)
+class MonitorAdapter(QObject, BaseAdapterInterface):
+    changed = Signal(bool)
 
-    def __init__(self, logic, interval=1000):
+    def __init__(self, interval, logic):
         super().__init__()
         self.logic = logic
         self.timer = QTimer(self)
@@ -137,7 +139,22 @@ class MonitorWorker(QObject, BaseWorkerInterface):
         state = self.check_state()
         if state is not self.last_result:
             self.last_result = state
-            self.value.emit(state)
+            self.changed.emit(state)
 
     def check_state(self):
         return self.logic.get_studentmain_state()
+
+# class UpdateAdapter(QObject, BaseAdapterInterface):
+#     changed = Signal(str)
+#
+#     def __init__(self):
+#         super().__init__()
+#
+#     def start(self):
+#         pass
+#
+#     def stop(self):
+#         pass
+#
+#     def run_task(self):
+#         pass

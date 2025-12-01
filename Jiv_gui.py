@@ -1,18 +1,17 @@
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMainWindow, QHBoxLayout, QWidget, QLabel
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, adapter):
+    def __init__(self):
         super().__init__()
         self.initialization_window()
-        self.adapter = adapter
+
+        self.adapter = None
 
         # Set central widget
-        self.main_widget = MainWidget(adapter)
+        self.main_widget = MainWidget()
         self.setCentralWidget(self.main_widget)
-
-
-
 
     def closeEvent(self, event):
         self.adapter.stop_all()
@@ -20,17 +19,22 @@ class MainWindow(QMainWindow):
 
     def initialization_window(self):
         self.setWindowTitle("Jiv test")
-        self.setMinimumSize(960, 540)
-        self.resize(960, 540)
+        self.setMinimumSize(360, 480)
+        self.resize(360, 480)
+
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
+
+    def adapter_signal_connect(self, adapter):
+        self.adapter = adapter
+        self.main_widget.adapter_signal_connect(adapter)
 
 
 class MainWidget(QWidget):
-    def __init__(self, adapter):
+    def __init__(self):
         super().__init__()
-        self.adapter = adapter
+        self.label_studentmain_state = None
+        self.adapter = None
         self.init_ui()
-
-        self.adapter.signal.connect(self.signal_handler)
 
     def init_ui(self):
         main_layout = QHBoxLayout()
@@ -45,10 +49,14 @@ class MainWidget(QWidget):
 
         self.setLayout(main_layout)
 
+    def adapter_signal_connect(self, adapter):
+        self.adapter = adapter
+        self.adapter.ui_change.connect(self.signal_handler)
+
     def signal_handler(self, name, value):
         print(f'Signal: {name}, {value}')
         match name:
-            case 'MonitorWorker':
+            case 'MonitorAdapter':
                 self.set_studentmain_state(value)
 
     def set_studentmain_state(self, state):

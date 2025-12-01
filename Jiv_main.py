@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QApplication
 import Jiv_logic
 import Jiv_adapter
 import Jiv_gui
+import Jiv_worker
 
 
 class JIVMain:
@@ -12,11 +13,13 @@ class JIVMain:
         app = QApplication(sys.argv)
 
         logic = Jiv_logic.JIVLogic()
-        adapters = Jiv_adapter.AdapterManager(logic)
-        gui = Jiv_gui.MainWindow(adapters)
+        gui = Jiv_gui.MainWindow()
+        adapters = Jiv_adapter.AdapterManager(logic, gui)
+        gui.adapter_signal_connect(adapters)
 
         gui.show()
-        # adapter.start()
+
+        jiv_worker = Jiv_worker.WorkerManager(logic, gui)
 
         sys.exit(app.exec())
 
