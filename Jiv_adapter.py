@@ -1,8 +1,6 @@
 # adapter.py
 # from threading import Thread
 
-# from typing import Protocol
-
 from PySide6.QtCore import QObject, Signal, QTimer, QThread
 
 
@@ -11,57 +9,48 @@ class AdapterManager(QObject):
 
     def __init__(self, logic, gui):
         super().__init__()
+        self.on_demand_adapters = {}
         self.logic = logic
         self.gui = gui
-        self.workers = []
-        # self.workers: list[BaseAdapterProtocol] = []
-        # self.threads: dict[BaseAdapterProtocol, QThread] = {}
 
-        self.threads = {}
+        self.lifelong_adapters = []
+        self.lifelong_threads = {}
+
+        self.terminate_adapter = None
 
         self.init_workers()
         self.start_all()
 
     def init_workers(self):
-        self.workers.append(MonitorAdapter(1000, self.logic))
-        # self.workers.append(TopMostAdapter(100, self.gui))
-        # self.workers.append(DatabaseAdapter(logic, 2000))
-        # self.workers.append(NetworkAdapter(logic, 5000))
+        self.lifelong_adapters.append(MonitorAdapter(1000, self.logic))
+        # self.lifelong_adapters.append(TopMostAdapter(100, self.gui))
+        # self.lifelong_adapters.append(DatabaseAdapter(logic, 2000))
+        # self.lifelong_adapters.append(NetworkAdapter(logic, 5000))
 
-    # def start_workers(self):
-    #
-    #     for worker in self.workers:
-    #         thread = QThread()
-    #
-    #         worker.moveToThread(thread)
-    #
-    #         thread.started.connect(worker.start)
-    #         worker.stateReady.connect(self.signal)
-    #
-    #         self.threads.append(thread)
-    #
-    #         thread.start()
-    #         worker.start()
+        self.terminate_adapter = TerminateAdapter(self.logic)
 
     def start_all(self):
-        for worker in self.workers:
+        for adapter in self.lifelong_adapters:
             thread = QThread()
-            worker.moveToThread(thread)
+            adapter.moveToThread(thread)
 
-            thread.started.connect(worker.start)
-            # 用 lambda 包装，把 worker 类名和结果一起发出去
-            worker.changed.connect(lambda result, w=worker:
+            thread.started.connect(adapter.start)
+            # Wrap with lambda and send the adapter class name and result together
+            adapter.changed.connect(lambda result, w=adapter:
                                    self.ui_change.emit(type(w).__name__, result))
 
-            self.threads[worker] = thread
+            self.lifelong_threads[adapter] = thread
             thread.start()
 
     def stop_all(self):
-        """停止所有 worker 并安全退出线程"""
-        for worker, thread in self.threads.items():
-            worker.stop()
+        """Stop all adapters and safely exit the thread"""
+        for adapter, thread in self.lifelong_threads.items():
+            adapter.stop()
             thread.quit()
             thread.wait()
+
+    def terminate_studentmain(self):
+        self.terminate_adapter.start()
 
 
 class BaseAdapterInterface:
@@ -73,14 +62,6 @@ class BaseAdapterInterface:
 
     def run_task(self):
         raise NotImplementedError("Subclasses must implement run_task()")
-
-
-# class BaseAdapterProtocol(Protocol):
-#     def start(self) -> None: ...
-#
-#     def stop(self) -> None: ...
-#
-#     def run_task(self) -> None: ...
 
 
 # class BaseAdapterInterface(ABC):
@@ -95,26 +76,6 @@ class BaseAdapterInterface:
 #     @abstractmethod
 #     def run_task(self):
 #         raise NotImplementedError("Subclasses must implement run_task()")
-
-
-# class MonitorAdapter(QObject):
-#     stateReady = Signal(bool)
-#
-#     def __init__(self, logic):
-#         super().__init__()
-#         self.thread = QThread()
-#         self.worker = MonitorAdapter(logic, 1000)
-#         self.worker.moveToThread(self.thread)
-#
-#         self.thread.started.connect(self.worker.start)
-#         self.worker.stateReady.connect(self.stateReady)
-#
-#         self.thread.start()
-#
-#     def stop(self):
-#         self.worker.stop()
-#         self.thread.quit()
-#         self.thread.wait()
 
 
 class MonitorAdapter(QObject, BaseAdapterInterface):
@@ -158,3 +119,25 @@ class MonitorAdapter(QObject, BaseAdapterInterface):
 #
 #     def run_task(self):
 #         pass
+
+class TerminateAdapter(QObject):
+    change = Signal(bool)
+
+    def __init__(self, logic):
+        super().__init__()
+        self.logic = logic
+        self.last_result = None
+
+    def start(self):
+        self.run_task()
+
+    def run_task(self):
+        pid = self.logic.get_pid_form_process_name('studentmain.exe')
+        if pid is None:
+            print('studentmain not found')
+            return
+        self.logic.terminate_process(pid)
+
+    def check_state(self):
+        return self.logic.get_studentmain_state()
+

@@ -1,0 +1,6 @@
+PROJECT_NAME = 'Jiyu Immunodeficiency Virus'
+MAJOR_VER, MINOR_VER = 0, 1
+VERSION = f'{MAJOR_VER}.{MINOR_VER}'
+FULL_VERSION = f'{PROJECT_NAME} v{VERSION}'
+# CODE_NAME = ''
+# NICKNAME = ''

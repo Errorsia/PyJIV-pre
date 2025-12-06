@@ -1,8 +1,9 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QMainWindow, QHBoxLayout, QWidget, QLabel
 
 
 class MainWindow(QMainWindow):
+    close_event = Signal()
     def __init__(self):
         super().__init__()
         self.initialization_window()
@@ -14,7 +15,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.main_widget)
 
     def closeEvent(self, event):
-        self.adapter.stop_all()
+        self.close_event.emit()
         event.accept()
 
     def initialization_window(self):
@@ -60,4 +61,5 @@ class MainWidget(QWidget):
                 self.set_studentmain_state(value)
 
     def set_studentmain_state(self, state):
-        self.label_studentmain_state.setText(f'Studentmain state: {'not' if not state else ''} running')
+        status = "not running" if not state else "running"
+        self.label_studentmain_state.setText(f"Studentmain state: {status}")
