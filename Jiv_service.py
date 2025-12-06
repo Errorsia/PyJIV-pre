@@ -1,6 +1,7 @@
 import threading
-import time
 from abc import ABC, abstractmethod
+
+import pywintypes
 
 
 class ServiceManager:
@@ -27,10 +28,13 @@ class ServiceManager:
     def stop_all(self):
         """Stop services and quit"""
         for service, thread in self.threads.items():
+            print(service, thread)
             service.stop()
-            # If not daemon, wait until threads end
-            if thread.is_alive():
-                thread.join()
+
+            # May cause deadlock
+            # If not daemon, wait until lifelong_threads end
+            # if thread.is_alive():
+            #     thread.join()
 
 
 class BaseServiceInterface(ABC):
@@ -56,6 +60,7 @@ class TopMostService(BaseServiceInterface):
         """
         super().__init__()
 
+        self.stop_flag = threading.Event()
         self.interval = interval / 1000
         self.logic = logic
         self.gui = gui
@@ -68,13 +73,30 @@ class TopMostService(BaseServiceInterface):
         self.run_task()
 
     def stop(self):
-        self.run = False
+        self.stop_flag.set()
 
     def run_task(self):
-        # Set top most
-        while self.run:
-            self.logic.set_window_top_most(self.hwnd)
-            time.sleep(self.interval)
+        while not self.stop_flag.is_set():
+            try:
+                self.logic.set_window_top_most(self.hwnd)
+            except pywintypes.error as err:  # type: ignore
+                print('pywintypes.error')
+                print(err)
+            except Exception as err:
+                print(err)
+            if self.stop_flag.wait(self.interval):
+                break
+
+    # def stop(self):
+    #     self.run = False
+    #     print('get stop signal')
+    #
+    # def run_task(self):
+    #     # Set top most
+    #     while self.run:
+    #         print(self.run)
+    #         self.logic.set_window_top_most(self.hwnd)
+    #         time.sleep(self.interval)
 
     def init_hwnd(self):
         self.hwnd = int(self.gui.winId())
